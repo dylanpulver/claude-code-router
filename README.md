@@ -169,28 +169,28 @@ CCR supports OpenAI Chat / Responses, Anthropic Messages, Gemini Generate Conten
    <table width="100%">
      <tr>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21.exe">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22.exe">
            <img src="/docs/public/platform-icons/windows.png" width="44" height="44" alt="Windows logo" />
            <br />
            <strong>Windows</strong>
          </a>
        </td>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21.AppImage">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22.AppImage">
            <img src="/docs/public/platform-icons/linux.png" width="44" height="44" alt="Linux logo" />
            <br />
            <strong>Linux</strong>
          </a>
        </td>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21-mac-Apple-Silicon-arm64.dmg">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22-mac-Apple-Silicon-arm64.dmg">
            <img src="/docs/public/platform-icons/macos.png" width="44" height="44" alt="macOS logo" />
            <br />
            <strong>macOS (Apple Silicon)</strong>
          </a>
        </td>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21-mac-Intel-x64.dmg">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22-mac-Intel-x64.dmg">
            <img src="/docs/public/platform-icons/macos.png" width="44" height="44" alt="macOS logo" />
            <br />
            <strong>macOS (Intel)</strong>
@@ -408,7 +408,7 @@ The complete documentation lives at **[ccrdesk.top](https://ccrdesk.top/)**.
       </a>
     </td>
     <td align="center" width="330">
-      <a href="https://infistar.ai/register?aff=CCRCCR&ref_source=link">
+      <a href="https://www.infistar.cc/register?aff=CCRCCR&ref_source=link">
         <img src="/docs/public/provider-icons/infistar-ai.jpg" width="42" height="42" alt="无限星河 icon" />
         <br />
         <strong>无限星河</strong>

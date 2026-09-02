@@ -2,7 +2,7 @@
  * Extracted from gateway/service.ts. Keep this module focused on its named gateway boundary.
  */
 import type { IncomingHttpHeaders } from "node:http";
-import { BUILTIN_FUSION_VISION_TOOL_NAME, isGatewayProviderEnabled } from "@ccr/core/contracts/app";
+import { BUILTIN_FUSION_VISION_TOOL_NAME, effectiveContextWindowPercentFor, isGatewayProviderEnabled } from "@ccr/core/contracts/app";
 import type { ApiKeyConfig, AppConfig, ProfileConfig, ProviderModelMetadata, VirtualModelProfileConfig } from "@ccr/core/contracts/app";
 import { buildClaudeAppGatewayModelRoutes, resolveClaudeAppGatewayRouteModel } from "@ccr/core/agents/claude-app/gateway-routes";
 import { modelRegistryForConfig, normalizeRouteSelector, parseProviderModelSelector } from "@ccr/core/routing/model-registry";
@@ -115,7 +115,11 @@ export function createGatewayModelsResponse(config: AppConfig, headers: Incoming
 
 
 export function createClaudeCliBootstrapResponse(config: AppConfig, apiKey?: ApiKeyConfig): Record<string, unknown> {
-  const profile = profileForApiKey(config, apiKey);
+  return createClaudeCliBootstrapPayload(config, profileForApiKey(config, apiKey));
+}
+
+
+function createClaudeCliBootstrapPayload(config: AppConfig, profile?: ProfileConfig): Record<string, unknown> {
   const windows = createClaudeCliAutoCompactWindows(config, profile);
   return {
     additional_model_options: createClaudeCliAdditionalModelOptions(config, profile),
@@ -123,6 +127,19 @@ export function createClaudeCliBootstrapResponse(config: AppConfig, apiKey?: Api
     client_data: {
       rowan_thicket: { ...windows }
     }
+  };
+}
+
+
+export function claudeClientDiscoveryPayloads(
+  config: AppConfig,
+  options: { contextArchiveCompact?: boolean; profile?: ProfileConfig } = {}
+): Record<string, unknown> {
+  const { contextArchiveCompact, profile } = options;
+  return {
+    bootstrap: createClaudeCliBootstrapPayload(config, profile),
+    claudeApp: createClaudeAppGatewayModelsResponse(config, { contextArchiveCompact, profile }),
+    claudeCode: createClaudeAppGatewayModelsResponse(config, { claudeCode: true, contextArchiveCompact, profile })
   };
 }
 
@@ -404,7 +421,7 @@ function effectiveProviderContextWindow(metadata: ProviderModelMetadata | undefi
   if (!contextWindow) {
     return undefined;
   }
-  const effectivePercent = percentage(metadata?.effectiveContextWindowPercent) ?? 100;
+  const effectivePercent = effectiveContextWindowPercentFor(metadata) ?? 100;
   return Math.max(1, Math.floor((contextWindow * effectivePercent) / 100));
 }
 
@@ -464,13 +481,6 @@ function gatewayModelSupportsOneMillionContext(config: AppConfig, selector: stri
     (metadataContextWindow && metadataContextWindow >= 1_000_000) ||
     discovery.catalogEntry?.limits?.supports1MContext
   );
-}
-
-
-function percentage(value: number | undefined): number | undefined {
-  return value !== undefined && Number.isFinite(value) && value > 0 && value <= 100
-    ? value
-    : undefined;
 }
 
 

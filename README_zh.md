@@ -169,28 +169,28 @@ CCR 支持 OpenAI Chat / Responses、Anthropic Messages、Gemini Generate Conten
    <table width="100%">
      <tr>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21.exe">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22.exe">
            <img src="/docs/public/platform-icons/windows.png" width="44" height="44" alt="Windows 图标" />
            <br />
            <strong>Windows</strong>
          </a>
        </td>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21.AppImage">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22.AppImage">
            <img src="/docs/public/platform-icons/linux.png" width="44" height="44" alt="Linux 图标" />
            <br />
            <strong>Linux</strong>
          </a>
        </td>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21-mac-Apple-Silicon-arm64.dmg">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22-mac-Apple-Silicon-arm64.dmg">
            <img src="/docs/public/platform-icons/macos.png" width="44" height="44" alt="macOS 图标" />
            <br />
            <strong>macOS (Apple Silicon)</strong>
          </a>
        </td>
        <td align="center" width="330">
-         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.21/Claude-Code-Router_3.0.21-mac-Intel-x64.dmg">
+         <a href="https://github.com/musistudio/claude-code-router/releases/download/v3.0.22/Claude-Code-Router_3.0.22-mac-Intel-x64.dmg">
            <img src="/docs/public/platform-icons/macos.png" width="44" height="44" alt="macOS 图标" />
            <br />
            <strong>macOS (Intel)</strong>
@@ -408,7 +408,7 @@ Claude Code · Claude Design · Codex · Grok CLI · Kimi CLI · Kilo Code · Op
       </a>
     </td>
     <td align="center" width="330">
-      <a href="https://infistar.ai/register?aff=CCRCCR&ref_source=link">
+      <a href="https://www.infistar.cc/register?aff=CCRCCR&ref_source=link">
         <img src="/docs/public/provider-icons/infistar-ai.jpg" width="42" height="42" alt="无限星河图标" />
         <br />
         <strong>无限星河</strong>
