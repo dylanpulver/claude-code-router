@@ -809,7 +809,7 @@ test("profile service refreshes CCR-managed global Claude gateway env for genera
   }
 });
 
-test("profile service falls back to apiKeyHelper when Claude Code WIF support is not detected", { skip: !process.env.CCR_INTERNAL_HOME_DIR }, async () => {
+test("#1779 profile service defaults to apiKeyHelper even on Claude Code 2.1.235", { skip: !process.env.CCR_INTERNAL_HOME_DIR }, async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "ccr-claude-auth-mode-"));
   const profileId = "old-claude-code";
   const commandExtension = process.platform === "win32" ? ".cmd" : "";
@@ -819,8 +819,8 @@ test("profile service falls back to apiKeyHelper when Claude Code WIF support is
     const fakeClaude = path.join(root, process.platform === "win32" ? "claude.cmd" : "claude");
     mkdirSync(binDir, { recursive: true });
     writeFileSync(fakeClaude, process.platform === "win32"
-      ? "@echo off\r\necho 2.1.100\r\n"
-      : "#!/bin/sh\nprintf '%s\\n' '2.1.100'\n");
+      ? "@echo off\r\necho 2.1.235\r\n"
+      : "#!/bin/sh\nprintf '%s\\n' '2.1.235'\n");
     chmodSync(fakeClaude, 0o700);
 
     const config = createDefaultAppConfig();
@@ -866,6 +866,11 @@ test("profile service falls back to apiKeyHelper when Claude Code WIF support is
     assert.equal(settings.env.CCR_CLAUDE_CODE_AUTH_MODE, undefined);
     assert.equal(readFileSync(tokenFile, "utf8"), "ccr-old-auto-token\n");
     assert.match(readFileSync(helperFile, "utf8"), /ccr-old-auto-token/);
+    if (process.platform !== "win32") {
+      const helper = spawnSync(helperFile, [], { encoding: "utf8" });
+      assert.equal(helper.status, 0);
+      assert.equal(helper.stdout.trim(), "ccr-old-auto-token");
+    }
 
     const wrapperContent = readFileSync(path.join(binDir, `ccr-claude-code-wrapper-${profileId}${commandExtension}`), "utf8");
     assert.equal(wrapperContent.includes("ANTHROPIC_IDENTITY_TOKEN_FILE"), false);
