@@ -83,6 +83,109 @@ test("CCR router core plugin exposes route endpoint and beforeRouting transform"
   assert.equal(resolved.requestBody.model, "beta");
 });
 
+test("CCR router core plugin resolves bare Codex companion models through the authenticated profile provider", async () => {
+  const config = createDefaultAppConfig();
+  config.APIKEY = "bs-key";
+  config.APIKEYS = [{ createdAt: new Date(0).toISOString(), id: "profile:bs-2", key: "bs-key" }];
+  config.Providers = [
+    {
+      id: "zhipu",
+      models: ["glm-5.3"],
+      name: "Zhipu AI (China) - Coding Plan",
+      type: "openai_chat_completions"
+    },
+    {
+      id: "codex-api",
+      models: ["gpt-5.6-luna"],
+      name: "Codex API",
+      type: "openai_responses"
+    },
+    {
+      id: "uuroute",
+      models: ["gpt-5.5", "gpt-5.6-sol", "gpt-5.6-luna"],
+      name: "uuroute",
+      type: "openai_chat_completions"
+    },
+    {
+      id: "baishan",
+      models: ["gpt-5.5", "gpt-5.6-luna"],
+      name: "白山",
+      type: "openai_chat_completions"
+    }
+  ];
+  config.profile.profiles = [{
+    agent: "codex",
+    enabled: true,
+    id: "bs-2",
+    model: "uuroute/gpt-5.6-sol",
+    name: "BS",
+    providerId: "claude-code-router",
+    routing: {
+      enabled: false,
+      enhancedRoute: false,
+      rules: []
+    },
+    scope: "ccr"
+  }];
+
+  const plugin = await createGatewayPlugin({ plugin: { config: { appConfig: config } } });
+  const headers = {
+    authorization: "Bearer bs-key",
+    "user-agent": "Codex Desktop/0.153.4"
+  };
+  await plugin.requestHooks[0].beforeAuth({
+    request: {
+      headers,
+      method: "POST",
+      url: "/v1/responses"
+    }
+  });
+  const transformed = await plugin.requestTransforms[0].transform({
+    request: {
+      headers,
+      method: "POST",
+      url: "/v1/responses"
+    },
+    requestBody: {
+      input: "generate a title",
+      model: "gpt-5.6-luna",
+      stream: true
+    },
+    route: {
+      method: "POST",
+      url: "/v1/responses"
+    }
+  });
+
+  assert.ok(transformed);
+  assert.equal(transformed.headers[ccrRouteReasonHeader], "default");
+  assert.equal(transformed.headers[ccrRoutedModelHeader], "gpt-5.6-luna");
+  assert.equal(transformed.model, "gpt-5.6-luna");
+  assert.equal(transformed.requestBody.model, "gpt-5.6-luna");
+
+  const resolver = plugin.routeResolvers.find((item) => item.key === ccrRouterRouteResolverKey);
+  const resolved = resolver.resolve({
+    model: transformed.model,
+    request: {
+      headers: {
+        ...headers,
+        ...transformed.headers
+      },
+      method: "POST",
+      url: "/v1/responses"
+    },
+    requestBody: transformed.requestBody,
+    route: {
+      method: "POST",
+      url: "/v1/responses"
+    }
+  });
+
+  assert.equal(resolved.targetProviderName, providerRuntimeId(config.Providers[2]));
+  assert.equal(resolved.model, "gpt-5.6-luna");
+  assert.equal(resolved.requestBody.model, "gpt-5.6-luna");
+});
+
 test("CCR router core plugin applies Codex bridge request and response hooks", async () => {
   const config = createDefaultAppConfig();
   config.Providers = [{
@@ -203,6 +306,53 @@ test("CCR router core plugin applies Codex bridge request and response hooks", a
   assert.equal(streamed.headers.get("content-length"), null);
   assert.match(streamText, /"type":"custom_tool_call"/);
   assert.match(streamText, /"name":"apply_patch"/);
+});
+
+test("CCR router core plugin skips Codex bridge for native Responses passthrough", async () => {
+  const config = createDefaultAppConfig();
+  config.Providers = [{
+    models: ["gpt-5.5"],
+    name: "uuroute",
+    type: "openai_responses"
+  }];
+
+  const plugin = await createGatewayPlugin({ plugin: { config: { appConfig: config } } });
+  const transform = plugin.requestTransforms.find((item) => item.key === ccrCodexBridgeRequestTransformKey);
+  const transformed = await transform.transform({
+    model: "gpt-5.5",
+    request: {
+      headers: { "user-agent": "Codex Desktop/0.153.4" },
+      id: "native-responses-passthrough-1",
+      method: "POST",
+      url: "/v1/responses"
+    },
+    requestBody: {
+      input: "inspect the repo",
+      model: "gpt-5.5",
+      tools: [
+        { type: "custom", name: "apply_patch", format: { type: "grammar", syntax: "lark", definition: "start: begin_patch" } },
+        multiAgentNamespaceTool()
+      ],
+      tool_choice: "auto"
+    },
+    route: {
+      method: "POST",
+      url: "/v1/responses"
+    },
+    source: {
+      adapterKey: "openai_responses",
+      metadata: {}
+    },
+    sourceAdapterKey: "openai_responses",
+    sourceProvider: "openai",
+    targetProvider: "openai",
+    targetProviderConfig: {
+      name: "uuroute",
+      type: "openai_responses"
+    }
+  });
+
+  assert.equal(transformed, undefined);
 });
 
 test("CCR router core plugin applies OpenRouter discount provider routing", async (t) => {

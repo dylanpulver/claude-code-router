@@ -305,14 +305,21 @@ class GatewayService {
       }
     }
 
-    const status = await this.start(config);
-    if (status.state !== "error" || !isAddressInUseMessage(status.lastError)) {
-      return status;
-    }
-
-    const existingGateway = await probeExistingCcrGateway(config);
-    if (existingGateway.state !== "usable") {
-      return status;
+    // A separately managed single runtime can exit without exposing its bind
+    // error to this process. Reuse an authenticated gateway before spawning a
+    // competing runtime instead of depending on an EADDRINUSE log message.
+    let existingGateway = await probeExistingCcrGateway(config);
+    if (existingGateway.state === "usable") {
+      await this.stop({ nextConfig: config });
+    } else {
+      const status = await this.start(config);
+      if (status.state !== "error" || !isAddressInUseMessage(status.lastError)) {
+        return status;
+      }
+      existingGateway = await probeExistingCcrGateway(config);
+      if (existingGateway.state !== "usable") {
+        return status;
+      }
     }
 
     this.markExternalGatewayRunning(config, existingGateway.endpoint, existingGateway.apiKey);

@@ -65,8 +65,8 @@ test("RequestLogRuntime merges a raw trace update that arrives before its reques
 test("RequestLogRuntime creates a standalone record from single-service raw trace", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "ccr-request-log-runtime-standalone-test-"));
   const runtime = createRuntime(dir);
-  const startedAt = "2026-08-26T01:02:03.004Z";
-  const completedAt = "2026-08-26T01:02:04.238Z";
+  const completedAt = new Date().toISOString();
+  const startedAt = new Date(Date.parse(completedAt) - 1234).toISOString();
   try {
     const result = runtime.enqueueRawTrace({
       allowStandaloneRecord: true,

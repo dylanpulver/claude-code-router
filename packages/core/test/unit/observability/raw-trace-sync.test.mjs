@@ -782,18 +782,21 @@ test("raw trace replay rotates through a bounded number of bundles per pass", as
       return { accepted: false, degraded: false, reason: "record_pending" };
     },
     getConfig: createConfig,
-    replayIntervalMs: 50,
+    replayIntervalMs: 60_000,
     replayMaxBundlesPerPass: 2,
     replayTimeBudgetMs: 1_000,
     retryCooldownMs: 60_000,
     spoolDirectory
   });
   try {
-    await synchronizer.start();
-    await waitFor(() => attemptedBundleIds.length >= 2);
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.equal(attemptedBundleIds.length, 2);
-    await waitFor(() => attemptedBundleIds.length === 5);
+    // Stop drains the startup pass. Restart the same synchronizer to exercise
+    // the next pass without racing a 50ms interval under parallel test load.
+    for (const expected of [2, 4, 5]) {
+      await synchronizer.start();
+      await waitFor(() => attemptedBundleIds.length >= expected);
+      await synchronizer.stop();
+      assert.equal(attemptedBundleIds.length, expected);
+    }
     assert.equal(new Set(attemptedBundleIds).size, 5);
   } finally {
     await synchronizer.stop();

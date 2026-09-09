@@ -36,7 +36,7 @@ import { prepareCursorOpenAICompatChatBody } from "@ccr/core/gateway/features/cu
 import { filteredResponseHeaders, formatError, formatUpstreamErrorForLog, forwardHeaders, inferGatewayClient, readRequestBody, sendJson, shouldCaptureGatewayUsage, shouldSendBody, stripLocalGatewayAuthHeaders } from "@ccr/core/gateway/http/io";
 import { parseJsonObjectSafe, serializeJsonBody, takeJsonObject } from "@ccr/core/gateway/http/body";
 import { createGatewayModelsResponse, prepareClaudeAppDiscoveredModelRequest, prepareClaudeCodeDiscoveredModelRequest, shouldServeGatewayModelsResponse } from "@ccr/core/gateway/features/model-discovery";
-import { resolveProviderLogName, resolveResponseProviderProtocol, sanitizeHeaderValue } from "@ccr/core/providers/runtime-topology";
+import { providerProtocolForClientProtocol, resolveProviderLogName, resolveResponseProviderProtocol, sanitizeHeaderValue } from "@ccr/core/providers/runtime-topology";
 import { createBodySampler, requestLogSampled, shouldRecordRequestLogs } from "@ccr/core/observability/raw-trace-sync";
 import { RequestRouteTraceRecorder } from "@ccr/core/observability/route-trace";
 import { coreGatewayUsageAttributionConfig } from "@ccr/core/gateway/core-runtime/config-compiler";
@@ -46,6 +46,7 @@ import { clientClosedRequestStatusCode, clientDisconnectMessage, coreGatewayAuth
 import type { BrowserWebSearchMcpIntegration, BrowserWebSearchProtocolRecord, UpstreamFetchResult } from "@ccr/core/gateway/internal/shared";
 import { cancelResponseBody, destroyResponseStreams, fetchUpstreamWithFallback, mergeFallbackResponseHeaders, rewriteCapabilityResponseHeaders, uniqueStreams, upstreamResponseHeaders } from "@ccr/core/gateway/upstream/executor";
 import { requestProtocolForPath, shouldApplyGatewayRouting } from "@ccr/core/routing/protocol-endpoints";
+import { modelRegistryForConfig } from "@ccr/core/routing/model-registry";
 import { createClaudeCodeWebSearchContinuationContext, createHostedWebSearchProtocolContext, hostedWebSearchProtocolResponseStream, hostedWebSearchUnavailableMessage, prepareClaudeCodeWebSearchContinuationRequestBody, prepareHostedWebSearchProtocolRequestBody, selectClaudeCodeWebSearchContinuationRecords, selectHostedWebSearchProtocolRecords } from "@ccr/core/gateway/features/hosted-web-search/index";
 import { isModelAllowedForProfile, profileForApiKey } from "@ccr/core/profiles/model-allowlist";
 import { pluginService } from "@ccr/core/plugins/service";
@@ -435,15 +436,23 @@ export class GatewayRequestPipeline {
         return;
       }
 
-      const codexBridgeStartedAt = Date.now();
-      const codexApplyPatchBridgeRequest = prepareCodexApplyPatchBridgeRequest({
-        body: bodyToForward,
-        config: this.config,
-        headers: request.headers,
-        method,
+      const skipCodexBridgeForNativeResponses = shouldBypassCodexBridgeForNativeResponsesTarget(
+        this.config,
+        bodyToForward,
         path,
         routedModel
-      });
+      );
+      const codexBridgeStartedAt = Date.now();
+      const codexApplyPatchBridgeRequest = skipCodexBridgeForNativeResponses
+        ? undefined
+        : prepareCodexApplyPatchBridgeRequest({
+            body: bodyToForward,
+            config: this.config,
+            headers: request.headers,
+            method,
+            path,
+            routedModel
+          });
       if (codexApplyPatchBridgeRequest) {
         bodyToForward = codexApplyPatchBridgeRequest.body;
         codexApplyPatchBridgeActive = true;
@@ -464,14 +473,16 @@ export class GatewayRequestPipeline {
       }
 
       const codexMultiAgentBridgeStartedAt = Date.now();
-      const codexMultiAgentBridgeRequest = prepareCodexMultiAgentBridgeRequest({
-        body: bodyToForward,
-        config: this.config,
-        headers: request.headers,
-        method,
-        path,
-        routedModel
-      });
+      const codexMultiAgentBridgeRequest = skipCodexBridgeForNativeResponses
+        ? undefined
+        : prepareCodexMultiAgentBridgeRequest({
+            body: bodyToForward,
+            config: this.config,
+            headers: request.headers,
+            method,
+            path,
+            routedModel
+          });
       if (codexMultiAgentBridgeRequest) {
         bodyToForward = codexMultiAgentBridgeRequest.body;
         codexMultiAgentBridgeActive = true;
@@ -744,7 +755,9 @@ export class GatewayRequestPipeline {
       const upstreamPreparationChanges: RequestRouteTraceChange[] = contentLengthHeader === undefined
         ? []
         : [{ before: contentLengthHeader, operation: "remove", path: "/headers/content-length", scope: "headers" }];
-      const upstreamUrl = new URL(upstreamPath, this.status.coreEndpoint).toString();
+      const upstreamRequestUrl = new URL(upstreamPath, this.status.coreEndpoint);
+      upstreamRequestUrl.search = new URL(requestUrl).search;
+      const upstreamUrl = upstreamRequestUrl.toString();
       let upstreamResult: UpstreamFetchResult;
 
       try {
@@ -1158,6 +1171,23 @@ function normalizeCoreRouterPluginResponse(
       tokenCount: decision.tokenCount
     }
   };
+}
+
+function shouldBypassCodexBridgeForNativeResponsesTarget(
+  config: AppConfig,
+  body: Buffer | undefined,
+  path: string,
+  routedModel: string | undefined
+): boolean {
+  const protocol = requestProtocolForPath(path);
+  if (protocol !== "openai_responses") {
+    return false;
+  }
+
+  const model = routedModel ?? (body ? requestLogRequestedModel(body, path) : undefined);
+  const resolved = modelRegistryForConfig(config).resolve(model);
+  return resolved?.kind === "provider" &&
+    providerProtocolForClientProtocol(resolved.provider, protocol) === "openai_responses";
 }
 
 function profileDeniedModel(

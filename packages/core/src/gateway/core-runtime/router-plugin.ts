@@ -66,6 +66,7 @@ import type {
   GatewayPluginRequestTransformInput as CcrGatewayPluginRequestTransformInput
 } from "@ccr/core/plugins/service";
 import { isModelAllowedForProfile, profileForApiKey } from "@ccr/core/profiles/model-allowlist";
+import { profileApiKeyId } from "@ccr/core/profiles/api-key";
 import { adaptRouteRequestBody, restoreRouteRequestBody } from "@ccr/core/routing/protocol-adapter";
 import { requestProtocolForPath, shouldApplyGatewayRouting } from "@ccr/core/routing/protocol-endpoints";
 import { RouteScriptRuntime } from "@ccr/core/routing/route-script-runtime";
@@ -73,6 +74,7 @@ import { modelRegistryForConfig, normalizeRouteSelector, parseProviderModelSelec
 import {
   activeProviderCredentials,
   normalizedProviderCapabilities,
+  normalizeProviderProtocol,
   providerCapabilityForClientProtocol,
   providerCapabilityInternalName,
   providerCredentialInternalName,
@@ -130,7 +132,12 @@ type GatewayRequestTransformInput = {
     method?: string;
     url?: string;
   };
+  source?: {
+    adapterKey?: string;
+  };
+  sourceAdapterKey?: string;
   stage?: string;
+  targetProviderConfig?: Pick<GatewayProviderConfig, "provider" | "type">;
 };
 
 type UpstreamRequest = {
@@ -555,6 +562,9 @@ function applyCodexBridgeRequestTransform(
   const url = requestInput.route?.url ?? requestInput.request?.url ?? "/";
   const path = requestPath(url);
   const headers = requestInput.request?.headers ?? {};
+  if (shouldBypassCodexBridgeForNativeResponsesPassthrough(requestInput, path)) {
+    return undefined;
+  }
   const routedModel = requestInput.model ??
     readHeader(headers, ccrRoutedModelHeader) ??
     requestedModelFromBody(requestInput.requestBody, path, undefined);
@@ -604,6 +614,24 @@ function applyCodexBridgeRequestTransform(
   };
 }
 
+function shouldBypassCodexBridgeForNativeResponsesPassthrough(
+  requestInput: GatewayRequestTransformInput,
+  path: string
+): boolean {
+  if (requestProtocolForPath(path) !== "openai_responses") {
+    return false;
+  }
+
+  const sourceAdapterKey = requestInput.sourceAdapterKey ?? requestInput.source?.adapterKey;
+  if (sourceAdapterKey !== "openai_responses") {
+    return false;
+  }
+
+  const targetProtocol = normalizeProviderProtocol(requestInput.targetProviderConfig?.type) ??
+    normalizeProviderProtocol(requestInput.targetProviderConfig?.provider);
+  return targetProtocol === "openai_responses";
+}
+
 function applyCodexBridgeResponseTransform(
   responseInput: GatewayResponseHookInput
 ): { responsePayload: unknown } | undefined {
@@ -640,7 +668,7 @@ function applyCodexBridgeStreamTransform(streamInput: GatewayStreamHookInput): R
   const headers = new Headers(streamInput.upstreamResponse.headers);
   headers.delete("content-encoding");
   headers.delete("content-length");
-  let stream = Readable.fromWeb(streamInput.upstreamResponse.body as ReadableStream<Uint8Array>);
+  let stream = Readable.fromWeb(streamInput.upstreamResponse.body as unknown as Parameters<typeof Readable.fromWeb>[0]);
   if (bridge.applyPatch) {
     stream = codexApplyPatchBridgeResponseStream(stream, headers);
   }
@@ -673,7 +701,7 @@ function finalizeOpenRouterDiscountSelection(input: GatewayResponseHookInput | G
     return;
   }
   finalizeOpenRouterDiscountProviderRouterSelection(requestId, {
-    ok: upstreamResponseSuccessful(input.upstreamResponse, input.statusCode),
+    ok: upstreamResponseSuccessful(input.upstreamResponse, "statusCode" in input ? input.statusCode : undefined),
     routedModel: readHeader(input.request?.headers, ccrRoutedModelHeader) ?? input.model,
     usedCcrFallback: false
   });
@@ -890,7 +918,9 @@ function resolveCcrGatewayRoute(
   }
 
   const publicModel = resolveGatewayPublicModelId(routedModel, config) ?? routedModel;
-  const resolved = modelRegistryForConfig(config).resolve(publicModel);
+  const modelRegistry = modelRegistryForConfig(config);
+  const resolved = modelRegistry.resolve(publicModel) ??
+    resolveProfileProviderModel(config, requestInput.request?.headers, publicModel, modelRegistry);
   if (!resolved) {
     return undefined;
   }
@@ -915,6 +945,47 @@ function resolveCcrGatewayRoute(
     requestBody,
     targetProviderName
   };
+}
+
+function resolveProfileProviderModel(
+  config: AppConfig,
+  headers: Record<string, HeaderValue> | undefined,
+  model: string,
+  modelRegistry: ReturnType<typeof modelRegistryForConfig>
+) {
+  if (parseProviderModelSelector(model)) {
+    return undefined;
+  }
+  const profileProviderName = authenticatedProfileProviderName(config, headers, modelRegistry);
+  return profileProviderName
+    ? modelRegistry.resolve(model, { providerName: profileProviderName })
+    : undefined;
+}
+
+function authenticatedProfileProviderName(
+  config: AppConfig,
+  headers: Record<string, HeaderValue> | undefined,
+  modelRegistry: ReturnType<typeof modelRegistryForConfig>
+): string | undefined {
+  if (config.profile.enabled === false) {
+    return undefined;
+  }
+  const apiKeyId = readHeader(headers, "x-auth-api-key-id")?.trim() || readHeader(headers, "x-auth-sub")?.trim();
+  if (!apiKeyId) {
+    return undefined;
+  }
+  const profile = config.profile.profiles.find((item) =>
+    item.enabled && profileApiKeyId(item) === apiKeyId
+  );
+  const profileModel = normalizeRouteSelector(profile?.model);
+  const explicitProvider = parseProviderModelSelector(profileModel)?.provider;
+  if (explicitProvider) {
+    return explicitProvider;
+  }
+  const resolvedProfileModel = modelRegistry.resolve(profileModel);
+  return resolvedProfileModel?.kind === "provider"
+    ? resolvedProfileModel.provider.name
+    : undefined;
 }
 
 function requestBodyWithModel(body: Record<string, unknown>, model: string): Record<string, unknown> {

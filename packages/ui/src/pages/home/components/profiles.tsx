@@ -1,3 +1,4 @@
+import { useDraftClose } from "./unsaved-changes";
 import {
   AddProfileDraft, AddRoutingRuleDraft, AgentLogo, AnimatedIconSwap, AnimatedPopover, AnimatePresence, AppConfig, Badge, BotGatewaySavedConfig, botGatewaySavedConfigLabel, BotHandoffScanTarget, Button,
   Card, CardContent, CardHeader, CardTitle, Check, ChevronDown, CircleAlert, Copy,
@@ -2261,9 +2262,11 @@ export function AddProfileDialog({
   onSubmit: () => Promise<boolean> | boolean | void;
 }) {
   const t = useAppText();
+  const { close, confirmation } = useDraftClose(draft, onClose);
 
   return (
-    <Dialog onOpenChange={(open) => !open && !submitting && onClose()} open>
+    <>
+    <Dialog onOpenChange={(open) => !open && !submitting && close()} open>
       <DialogContent>
         <DialogHeader>
           <div>
@@ -2285,7 +2288,7 @@ export function AddProfileDialog({
         </DialogBody>
         <DialogFooter>
           <div className="flex justify-end gap-2">
-            <Button disabled={submitting} onClick={onClose} type="button" variant="outline">
+            <Button disabled={submitting} onClick={close} type="button" variant="outline">
               {t("Cancel")}
             </Button>
             <Button disabled={!canSubmit || submitting} onClick={() => void onSubmit()} type="button">
@@ -2300,5 +2303,7 @@ export function AddProfileDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    {confirmation}
+    </>
   );
 }
