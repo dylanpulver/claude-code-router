@@ -2497,6 +2497,7 @@ export function AddProviderForm({
                                     checked={checked}
                                     onCheckedChange={() => {
                                       onChange({
+                                        protocolDetectionMode: "manual",
                                         selectedProtocols: checked
                                           ? draft.selectedProtocols.filter((selected) => selected !== protocol)
                                           : uniqueProviderProtocols([...draft.selectedProtocols, protocol])
@@ -2530,6 +2531,7 @@ export function AddProviderForm({
                                         return;
                                       }
                                       onChange({
+                                        protocolDetectionMode: "manual",
                                         selectedProtocols: checked
                                           ? draft.selectedProtocols.filter((protocol) => protocol !== selectableProtocol)
                                           : uniqueProviderProtocols([...draft.selectedProtocols, selectableProtocol])
