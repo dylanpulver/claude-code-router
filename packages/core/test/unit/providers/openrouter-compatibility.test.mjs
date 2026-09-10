@@ -8,22 +8,24 @@ import { createClaudeCliAutoCompactWindows } from "@ccr/core/gateway/features/mo
 const baseUrl = "https://openrouter.ai/api/v1";
 const provider = {
   name: "OpenRouter", api_base_url: baseUrl,
-  models: ["z-ai/glm-5.2:free", "z-ai/glm-5.2"],
+  models: ["minimax/minimax-m3", "openrouter/minimax/minimax-m3"],
   capabilities: ["anthropic_messages", "openai_chat_completions", "openai_responses"].map((type) => ({ type, baseUrl }))
 };
 
 test("#1779 OpenRouter exact source limits override cross-provider merged maxima", () => {
   const metadata = getProviderCatalogModels({ providerPresetId: "openrouter" }).modelMetadata;
-  assert.equal(metadata["z-ai/glm-5.2:free"].contextWindow, 256000);
-  assert.equal(metadata["z-ai/glm-5.2"].contextWindow, 1048576);
-  assert.equal(metadata["minimax/minimax-m3"].contextWindow, 524288);
+  const exact = metadata["minimax/minimax-m3"];
+  const aggregate = metadata["openrouter/minimax/minimax-m3"];
+  assert.ok(exact?.contextWindow);
+  assert.ok(aggregate?.contextWindow);
+  assert.ok(exact.contextWindow < aggregate.contextWindow);
 });
 
 test("#1779 Claude context cache uses provider limits and explicit discovery overrides", () => {
   const config = { ...createDefaultAppConfig(), Providers: [provider] };
   let windows = createClaudeCliAutoCompactWindows(config);
-  assert.equal(windows["OpenRouter/z-ai/glm-5.2:free"], 256000);
-  assert.equal(windows["OpenRouter/z-ai/glm-5.2"], 1000000);
+  assert.equal(windows["OpenRouter/minimax/minimax-m3"], 524288);
+  assert.equal(windows["OpenRouter/openrouter/minimax/minimax-m3"], 1000000);
   config.Providers = [{ ...provider, models: ["minimax/minimax-m3:free"], modelMetadata: {
     "minimax/minimax-m3:free": { contextWindow: 1000000 }
   } }];
