@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@the-next-ai/ai-gateway':
-        specifier: ^1.0.20
-        version: 1.0.20
+        specifier: ^1.0.21
+        version: 1.0.21
       '@the-next-ai/bot-gateway-sdk':
         specifier: ^0.1.0
         version: 0.1.0
@@ -682,8 +682,8 @@ packages:
     resolution: {integrity: sha512-krXjAikiaFSPaK/FkAQT5UTx3VormQaiZ5hBFlJZ9UFQGB/rwg1MZIhHAG9smMQRTdyJxP6Qt5MwMtdyU5FWrA==}
     engines: {node: '>= 20'}
 
-  '@the-next-ai/ai-gateway@1.0.20':
-    resolution: {integrity: sha512-twTYSpu2TfvDhK0ynSrPOoiSll+YaPoQn13+Wq2qj295f5q82Hkv5Adcz9NfugklWRLFo+usDWWowhcLCOH1Bg==}
+  '@the-next-ai/ai-gateway@1.0.21':
+    resolution: {integrity: sha512-iZkW2V1qhEF/cMX8MXnGjOIsSSScsE9WaEfEVZZxsn7lLNykTBJ3VZnN6+iDFBU+P0nK+NO6hSS7I83rBSMnJw==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -3423,7 +3423,7 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.3
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.3
 
-  '@the-next-ai/ai-gateway@1.0.20':
+  '@the-next-ai/ai-gateway@1.0.21':
     dependencies:
       diff: 8.0.4
       fastify: 5.12.1
